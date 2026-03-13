@@ -2,49 +2,102 @@
 <html>
 
 <head>
-    <title>YouTube Scraper</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>YouTube Channel Scraper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-    <h2>YouTube Channel Scraper</h2>
+    <h1>📺 YouTube Channel Scraper</h1>
 
     <form method="POST">
+        <div>
+            <label>Country:</label>
+            <select name="country">
+                {% for c in countries %}
+                <option value="{{c}}">{{c}}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-        <label>Select Country</label>
+        <div>
+            <label>Category:</label>
+            <input type="text" name="category" placeholder="e.g., cooking, tech, vlogs"
+                value="{{request.form.category}}">
+        </div>
 
-        <select name="country">
-            {% for c in countries %}
-            <option value="{{c}}">{{c}}</option>
-            {% endfor %}
-        </select>
+        <div>
+            <label>Number of Channels:</label>
+            <input type="number" name="count" value="{{request.form.count or 5}}" min="1" max="50" style="width:80px;">
+        </div>
 
-        <label>Select Category</label>
-
-        <select name="category">
-            {% for c in categories %}
-            <option value="{{c}}">{{c}}</option>
-            {% endfor %}
-        </select>
-
-        <button type="submit">Search Channels</button>
-
+        <div style="margin-top: 15px;">
+            <button type="submit">🔍 Search Channels</button>
+        </div>
     </form>
 
     <hr>
 
-    <h3>Paste Channel Video URLs</h3>
+    <h2>📋 Found Channels</h2>
+
+    {% if channels %}
+    <form action="/scrape" method="POST" id="scrapeForm">
+        <p>
+            <strong>{{ channels|length }}</strong> channels found.
+            <span class="count-badge">Select the ones you want to scrape</span>
+        </p>
+
+        <ul>
+            {% for ch in channels %}
+            <li>
+                <input type="checkbox" name="channels" value="{{ch}}" checked id="ch_{{loop.index}}">
+                <a href="{{ch}}" target="_blank" class="channel-link">{{ch}}</a>
+                <small>(opens in new tab)</small>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div style="margin-top: 15px;">
+            <button type="submit"
+                onclick="return confirm('Start scraping selected channels? This may take a few minutes.')">
+                🚀 Scrape Selected Channels
+            </button>
+            <button type="button" onclick="selectAll(true)" style="background-color: #666;">Select All</button>
+            <button type="button" onclick="selectAll(false)" style="background-color: #666;">Deselect All</button>
+        </div>
+    </form>
+    {% else %}
+    <p style="color: #666; font-style: italic;">No channels yet. Use the search form above to find channels.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>✏️ Manual Entry</h2>
+    <p>You can also paste channel URLs directly (one per line):</p>
 
     <form action="/scrape" method="POST">
-
-        <textarea name="channels" rows="10" cols="70" placeholder="Paste channel /videos links here..."></textarea>
-
+        <textarea name="channels"
+            placeholder="Example:&#10;https://www.youtube.com/channel/UCXuqSBlHAE6Xw-yeJA0Tunw&#10;https://www.youtube.com/c/ChannelName/videos"
+            rows="8"></textarea>
         <br><br>
-
-        <button type="submit">Scrape Channels</button>
-
+        <button type="submit">📥 Scrape Pasted Channels</button>
     </form>
+
+    <script>
+        function selectAll(select) {
+            const checkboxes = document.querySelectorAll('#scrapeForm input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = select);
+        }
+
+        // Form validation
+        document.getElementById('scrapeForm')?.addEventListener('submit', function (e) {
+            const checked = document.querySelectorAll('#scrapeForm input[type="checkbox"]:checked');
+            if (checked.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one channel to scrape!');
+            }
+        });
+    </script>
 
 </body>
 

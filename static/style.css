@@ -1,14 +1,95 @@
 body {
-    font-family: Arial;
-    margin: 40px;
+    font-family: Arial, sans-serif;
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+h1 {
+    color: #cc0000;
+}
+
+form {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+label {
+    display: inline-block;
+    width: 150px;
+    font-weight: bold;
 }
 
 select,
+input[type="text"],
+input[type="number"] {
+    padding: 8px;
+    margin: 5px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 250px;
+}
+
 button {
-    padding: 10px;
-    margin: 10px;
+    background-color: #cc0000;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background-color: #990000;
+}
+
+hr {
+    border: 1px solid #eee;
+    margin: 20px 0;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    padding: 8px;
+    margin: 5px 0;
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+
+li input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.channel-link {
+    color: #0066cc;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.channel-link:hover {
+    text-decoration: underline;
+}
+
+.count-badge {
+    background: #cc0000;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-left: 10px;
 }
 
 textarea {
-    width: 600px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
 }
