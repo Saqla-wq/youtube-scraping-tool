@@ -1,95 +1,198 @@
+/* Global */
+
 body {
-    font-family: Arial, sans-serif;
-    max-width: 1000px;
-    margin: 20px auto;
-    padding: 0 20px;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    margin: 0;
+    padding: 0;
+    color: #fff;
 }
+
+/* Container */
+
+.container {
+    max-width: 1100px;
+    margin: auto;
+    padding: 40px 20px;
+}
+
+/* Glass Card */
+
+.card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Title */
 
 h1 {
-    color: #cc0000;
+    text-align: center;
+    font-size: 34px;
+    margin-bottom: 30px;
+    color: #ffffff;
 }
 
-form {
-    background: #f9f9f9;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
+/* Labels */
 
 label {
-    display: inline-block;
-    width: 150px;
-    font-weight: bold;
+    font-weight: 600;
+    display: block;
+    margin-top: 12px;
 }
+
+/* Inputs */
 
 select,
 input[type="text"],
 input[type="number"] {
-    padding: 8px;
-    margin: 5px 0;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 250px;
-}
 
-button {
-    background-color: #cc0000;
-    color: white;
-    padding: 10px 20px;
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 6px;
     border: none;
-    border-radius: 4px;
-    cursor: pointer;
+    outline: none;
     font-size: 14px;
 }
 
+/* Buttons */
+
+button {
+    margin-top: 20px;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(45deg, #ff512f, #dd2476);
+    color: white;
+    font-size: 15px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
 button:hover {
-    background-color: #990000;
+    transform: scale(1.05);
 }
 
-hr {
-    border: 1px solid #eee;
-    margin: 20px 0;
+/* Channel list */
+
+.channel-list {
+    margin-top: 20px;
 }
 
-ul {
-    list-style: none;
-    padding: 0;
+.channel-item {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
 }
 
-li {
-    padding: 8px;
-    margin: 5px 0;
-    background: #f0f0f0;
-    border-radius: 4px;
-}
-
-li input[type="checkbox"] {
+.channel-item input {
     margin-right: 10px;
 }
 
 .channel-link {
-    color: #0066cc;
+    color: #7ec8ff;
     text-decoration: none;
-    word-break: break-all;
 }
 
 .channel-link:hover {
     text-decoration: underline;
 }
 
-.count-badge {
-    background: #cc0000;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    margin-left: 10px;
+/* Success box */
+
+.success-box {
+    text-align: center;
+    padding: 30px;
 }
 
-textarea {
+.success-box h2 {
+    color: #4cff9a;
+}
+
+/* Video table */
+
+table {
     width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th,
+td {
     padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-family: monospace;
+    text-align: left;
+}
+
+th {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.video-link {
+    color: #7ec8ff;
+    text-decoration: none;
+}
+
+.video-link:hover {
+    text-decoration: underline;
+}
+
+/* Buttons Container */
+.button-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+/* Common Button Styles */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    /* space between icon and text */
+    padding: 12px 25px;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: 0.3s ease;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Download CSV Button */
+.btn-download {
+    background: linear-gradient(45deg, #ff512f, #dd2476);
+    /* subtle blue glass */
+    color: #1f8ef1;
+}
+
+.btn-download:hover {
+    background: linear-gradient(45deg, #ff512f, #dd2476);
+    transform: scale(1.05);
+}
+
+/* New Search Button */
+.btn-newsearch {
+    background: linear-gradient(45deg, #ff512f, #dd2476);
+    /* subtle dark glass */
+    color: #9e9e9e;
+}
+
+.btn-newsearch:hover {
+    background: linear-gradient(45deg, #ff512f, #dd2476);
+    color: #ffffff;
+    transform: scale(1.05);
 }
