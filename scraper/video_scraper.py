@@ -278,3 +278,19 @@ def scrape_multiple_channels(channel_urls):
     else:
         print(" No videos found")
         return None
+
+
+def get_channels_by_category(categories_input, limit=5):
+    categories = [c.strip() for c in categories_input.split(",") if c.strip()]
+
+    channels_by_category = {}
+
+    for category in categories:
+        print(f"\n Searching for: {category}")
+        query = f"{category} youtube channel"
+        channels = search_channels(query, limit)
+        channels_by_category[category] = channels[:limit]
+
+        print(f" {category}: {len(channels_by_category[category])} channels")
+
+    return channels_by_category

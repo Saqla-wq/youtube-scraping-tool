@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file
-from scraper.video_scraper import get_channels, scrape_multiple_channels
+from scraper.video_scraper import get_channels_by_category, scrape_multiple_channels
 import os, io, datetime
 import uuid
 import csv
@@ -29,41 +29,23 @@ results_cache = {}
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    channels = []
-    error = None
-    youtube_link = None
-
     if request.method == "POST":
-        country = request.form.get("country")
-        category = request.form.get("category")
-        count = int(request.form.get("count", 5))
+        categories_input = request.form.get("categories")
+        limit = int(request.form.get("count") or 5)
+        channels_by_category = get_channels_by_category(categories_input, limit)
 
-        query = f"{country} {category} youtube channels"
-        youtube_link = f"https://www.youtube.com/results?search_query={query}"
+        return render_template(
+            "index.html", channels_by_category=channels_by_category, countries=countries
+        )
 
-        try:
-            channels = get_channels(query, count)
-            print(f"Found channels: {channels}")
-        except Exception as e:
-            error = str(e)
-            print(f"Error: {e}")
-
-    return render_template(
-        "index.html",
-        countries=countries,
-        channels=channels,
-        youtube_link=youtube_link,
-        error=error,
-    )
+    return render_template("index.html", countries=countries)
 
 
 @app.route("/scrape", methods=["POST"])
 def scrape():
     selected_channels = request.form.getlist("channels")
-
     if not selected_channels:
         return "Please select at least one channel"
-
     try:
         print(f"Selected channels: {selected_channels}")
         filename = scrape_multiple_channels(selected_channels)

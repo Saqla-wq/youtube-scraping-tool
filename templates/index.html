@@ -27,10 +27,10 @@
                     {% endfor %}
                 </select>
 
-                <label>Category</label>
-                <input type="text" name="category" placeholder="Example: Gaming">
+                <label>Categories (comma separated)</label>
+                <input type="text" name="categories" placeholder="Example: gaming, technology, education">
 
-                <label>Number of Channels</label>
+                <label>Number of Channels (per category)</label>
                 <input type="number" name="count" value="5">
 
                 <button type="submit">Search Channels</button>
@@ -39,7 +39,7 @@
 
         </div>
 
-        {% if channels %}
+        {% if channels_by_category %}
 
         <div class="card">
 
@@ -48,6 +48,10 @@
             <form method="POST" action="/scrape">
 
                 <div class="channel-list">
+
+                    {% for category, channels in channels_by_category.items() %}
+
+                    <h3>📺 {{ category|capitalize }} Channels</h3>
 
                     {% for ch in channels %}
 
@@ -58,6 +62,8 @@
                         <a class="channel-link" href="{{ch}}" target="_blank">{{ch}}</a>
 
                     </div>
+
+                    {% endfor %}
 
                     {% endfor %}
 
