@@ -1,87 +1,51 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scraping Results</title>
-
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
 </head>
-
 <body>
-
     <div class="container">
-
         <div class="card success-box">
+            <h2>Scraping Completed</h2>
+            <p>Total Videos Scraped: <strong>{{ total_videos }}</strong></p>
+            <p>CSV File Saved: <strong>{{ filename }}</strong></p>
 
-            <h2>✅ Scraping Completed</h2>
-
-            <p>Total Videos Scraped: <b>{{ total_videos }}</b></p>
-
-            <p>CSV File Saved: <b>{{ filename }}</b></p>
-
-            <!-- Download Button Section -->
             <div class="download-section">
-                <a href="{{ url_for('download', session_id=session_id) }}" class="btn btn-download">
-                    ⬇️ Download CSV File
-                </a>
-                <a href="{{ url_for('index') }}" class="btn btn-newsearch">
-                    ← New Search
-                </a>
+                <a href="{{ url_for('download', session_id=session_id) }}" class="btn btn-download">Download CSV File</a>
+                <a href="{{ url_for('index') }}" class="btn btn-newsearch">New Search</a>
             </div>
-
         </div>
 
-        {% for channel,videos in videos_by_channel.items() %}
-
+        {% for channel, videos in videos_by_channel.items() %}
         <div class="card">
-
-            <h2>📺 {{channel}}</h2>
+            <h2>{{ channel }}</h2>
             <p class="video-count">{{ videos|length }} videos</p>
 
             <table>
-
                 <tr>
                     <th>Title</th>
                     <th>Views</th>
                     <th>Date</th>
                     <th>Duration</th>
                 </tr>
-
                 {% for video in videos %}
-
                 <tr>
-
                     <td>
-                        <a class="video-link" href="{{video.url}}" target="_blank">
-                            {{video.video_title}}
+                        <a class="video-link" href="{{ video.url }}" target="_blank" rel="noopener noreferrer">
+                            {{ video.video_title }}
                         </a>
                     </td>
-
-                    <td>{{video.views}}</td>
-
-                    <td>{{video.upload_date}}</td>
-
-                    <td>{{video.duration}}</td>
-
+                    <td>{{ video.views }}</td>
+                    <td>{{ video.upload_date }}</td>
+                    <td>{{ video.duration }}</td>
                 </tr>
-
                 {% endfor %}
-
             </table>
-
         </div>
-
         {% endfor %}
-
-        <!-- Footer Note -->
-        <div class="footer-note">
-            💾 Click the download button above to save your CSV file
-        </div>
-
     </div>
-
 </body>
-
 </html>
