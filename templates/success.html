@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scraping Results</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
     <div class="container">
         <div class="card success-box">
@@ -14,7 +16,8 @@
             <p>CSV File Saved: <strong>{{ filename }}</strong></p>
 
             <div class="download-section">
-                <a href="{{ url_for('download', session_id=session_id) }}" class="btn btn-download">Download CSV File</a>
+                <a href="{{ url_for('download', session_id=session_id) }}" class="btn btn-download">Download CSV
+                    File</a>
                 <a href="{{ url_for('index') }}" class="btn btn-newsearch">New Search</a>
             </div>
         </div>
@@ -30,6 +33,7 @@
                     <th>Views</th>
                     <th>Date</th>
                     <th>Duration</th>
+                    <th>Download</th>
                 </tr>
                 {% for video in videos %}
                 <tr>
@@ -41,6 +45,12 @@
                     <td>{{ video.views }}</td>
                     <td>{{ video.upload_date }}</td>
                     <td>{{ video.duration }}</td>
+
+                    <td>
+                        <a href="/download?url={{ video.url }}">
+                            <button>⬇ Download</button>
+                        </a>
+                    </td>
                 </tr>
                 {% endfor %}
             </table>
@@ -48,4 +58,5 @@
         {% endfor %}
     </div>
 </body>
+
 </html>

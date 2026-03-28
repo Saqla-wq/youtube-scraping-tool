@@ -1,8 +1,8 @@
 from collections import defaultdict
 import csv
+from yt_dlp import YoutubeDL
 import os
 import uuid
-
 from flask import Flask, redirect, render_template, request, send_file, url_for
 
 from scraper.video_scraper import (
@@ -11,6 +11,7 @@ from scraper.video_scraper import (
     scrape_multiple_channels,
     validate_search_inputs,
 )
+
 
 app = Flask(__name__)
 
@@ -48,7 +49,8 @@ def index():
                 limit=cleaned["count"],
             )
             total_returned = sum(
-                len(category_channels) for category_channels in channels_by_category.values()
+                len(category_channels)
+                for category_channels in channels_by_category.values()
             )
             total_requested = cleaned["count"] * len(cleaned["categories"])
             summary = {
@@ -143,6 +145,23 @@ def download(session_id):
         download_name=os.path.basename(filename),
         mimetype="text/csv",
     )
+
+
+@app.route("/download")
+def download_video():
+    video_url = request.args.get("url")
+    output_path = os.path.join(os.getcwd(), "temp_downloads")
+    os.makedirs(output_path, exist_ok=True)
+
+    ydl_opts = {
+        "outtmpl": os.path.join(output_path, "%(title)s.%(ext)s"),
+        "format": "best[height<=720]",  # keep smaller for browser download
+    }
+
+    with YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(video_url, download=True)
+        file_name = ydl.prepare_filename(info)
+    return send_file(file_name, as_attachment=True)
 
 
 if __name__ == "__main__":
