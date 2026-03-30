@@ -1,138 +1,167 @@
+from collections import defaultdict
+import csv
+from yt_dlp import YoutubeDL
 import os
+import uuid
+from flask import Flask, redirect, render_template, request, send_file, url_for
 
-import requests
-from flask import Flask, render_template, request
+from scraper.video_scraper import (
+    COUNTRIES,
+    discover_channels_by_categories,
+    scrape_multiple_channels,
+    validate_search_inputs,
+)
 
 
-YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+app = Flask(__name__)
+
+results_cache = {}
 
 
-def create_app():
-    app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.environ.get(
-        "FLASK_SECRET_KEY", "change-this-secret-key-before-production"
+@app.route("/", methods=["GET", "POST"])
+def index():
+    form_data = {
+        "country": COUNTRIES[0]["code"],
+        "category": "",
+        "count": "5",
+    }
+    errors = {}
+    channels_by_category = {}
+    summary = None
+
+    if request.method == "POST":
+        form_data = {
+            "country": (request.form.get("country") or "").strip().upper(),
+            "category": (request.form.get("category") or "").strip(),
+            "count": (request.form.get("count") or "").strip(),
+        }
+
+        errors, cleaned = validate_search_inputs(
+            country_code=form_data["country"],
+            categories_input=form_data["category"],
+            count_value=form_data["count"],
+        )
+
+        if not errors:
+            channels_by_category = discover_channels_by_categories(
+                country_code=cleaned["country_code"],
+                categories=cleaned["categories"],
+                limit=cleaned["count"],
+            )
+            total_returned = sum(
+                len(category_channels)
+                for category_channels in channels_by_category.values()
+            )
+            total_requested = cleaned["count"] * len(cleaned["categories"])
+            summary = {
+                "country_name": cleaned["country_name"],
+                "categories": cleaned["categories"],
+                "requested_count": total_requested,
+                "returned_count": total_returned,
+                "per_category": cleaned["count"],
+            }
+
+            if not total_returned:
+                errors["general"] = (
+                    "No channels were found for that country and category. "
+                    "Try a broader category or a smaller count."
+                )
+
+    return render_template(
+        "index.html",
+        countries=COUNTRIES,
+        form_data=form_data,
+        errors=errors,
+        channels_by_category=channels_by_category,
+        summary=summary,
     )
-    app.config["YOUTUBE_API_KEY"] = os.environ.get("YOUTUBE_API_KEY", "").strip()
-
-    register_routes(app)
-    return app
 
 
-def search_youtube(query: str, api_key: str, max_results: int = 12):
-    params = {
-        "part": "snippet",
-        "q": query,
-        "type": "video",
-        "maxResults": max_results,
-        "key": api_key,
+@app.route("/scrape", methods=["POST"])
+def scrape():
+    selected_channels = request.form.getlist("channels")
+    if not selected_channels:
+        return "Please select at least one channel."
+
+    try:
+        filename = scrape_multiple_channels(selected_channels)
+        if not filename:
+            return "No videos were found for the selected channels."
+
+        session_id = str(uuid.uuid4())[:8]
+        results_cache[session_id] = filename
+        return redirect(url_for("success", session_id=session_id))
+    except Exception as exc:
+        print(f"Scrape error: {exc}")
+        return f"Error: {exc}"
+
+
+@app.route("/success")
+def success():
+    session_id = request.args.get("session_id")
+    filename = results_cache.get(session_id)
+
+    if not filename or not os.path.exists(filename):
+        return "File not found."
+
+    videos_by_channel = defaultdict(list)
+    total_videos = 0
+
+    try:
+        with open(filename, "r", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                channel = row.get("channel_url") or "Unknown Channel"
+                video_data = {
+                    "video_title": row.get("video_title") or "No title available",
+                    "views": row.get("views") or "Views unavailable",
+                    "upload_date": row.get("upload_date") or "Date unavailable",
+                    "duration": row.get("duration") or "Duration unavailable",
+                    "url": row.get("video_url") or "#",
+                }
+                videos_by_channel[channel].append(video_data)
+                total_videos += 1
+    except Exception as exc:
+        print(f"Error reading CSV: {exc}")
+
+    return render_template(
+        "success.html",
+        filename=os.path.basename(filename),
+        session_id=session_id,
+        videos_by_channel=dict(videos_by_channel),
+        total_videos=total_videos,
+    )
+
+
+@app.route("/download/<session_id>")
+def download(session_id):
+    filename = results_cache.get(session_id)
+    if not filename or not os.path.exists(filename):
+        return "File not found."
+
+    return send_file(
+        filename,
+        as_attachment=True,
+        download_name=os.path.basename(filename),
+        mimetype="text/csv",
+    )
+
+
+@app.route("/download")
+def download_video():
+    video_url = request.args.get("url")
+    output_path = os.path.join(os.getcwd(), "temp_downloads")
+    os.makedirs(output_path, exist_ok=True)
+
+    ydl_opts = {
+        "outtmpl": os.path.join(output_path, "%(title)s.%(ext)s"),
+        "format": "best[height<=720]",  # keep smaller for browser download
     }
 
-    response = requests.get(YOUTUBE_SEARCH_URL, params=params, timeout=20)
-    response.raise_for_status()
-
-    payload = response.json()
-    results = []
-
-    for item in payload.get("items", []):
-        video_id = (item.get("id") or {}).get("videoId")
-        snippet = item.get("snippet") or {}
-        if not video_id:
-            continue
-
-        results.append(
-            {
-                "title": snippet.get("title") or "Untitled video",
-                "channel_title": snippet.get("channelTitle") or "Unknown channel",
-                "description": snippet.get("description") or "No description available.",
-                "thumbnail": (
-                    (snippet.get("thumbnails") or {})
-                    .get("medium", {})
-                    .get("url", "")
-                ),
-                "published_at": snippet.get("publishedAt") or "",
-                "video_url": f"https://www.youtube.com/watch?v={video_id}",
-            }
-        )
-
-    return results
-
-
-def register_routes(app):
-    @app.route("/", methods=["GET"])
-    def index():
-        return render_template(
-            "index.html",
-            query="",
-            results=[],
-            errors={},
-        )
-
-    @app.route("/search", methods=["POST"])
-    def search():
-        query = (request.form.get("query") or "").strip()
-        errors = {}
-        results = []
-
-        if not query:
-            errors["query"] = "Please enter something to search for."
-            return render_template(
-                "index.html",
-                query=query,
-                results=results,
-                errors=errors,
-            )
-
-        api_key = app.config.get("YOUTUBE_API_KEY", "")
-        if not api_key:
-            errors["general"] = (
-                "The YouTube API key is missing. "
-                "Set the YOUTUBE_API_KEY environment variable on PythonAnywhere."
-            )
-            return render_template(
-                "index.html",
-                query=query,
-                results=results,
-                errors=errors,
-            )
-
-        try:
-            results = search_youtube(query=query, api_key=api_key)
-            if not results:
-                errors["general"] = "No YouTube results were found for that search."
-        except requests.exceptions.HTTPError as exc:
-            app.logger.exception("YouTube API HTTP error")
-            api_message = ""
-            try:
-                error_payload = exc.response.json()
-                api_message = (
-                    ((error_payload.get("error") or {}).get("message")) or ""
-                ).strip()
-            except ValueError:
-                api_message = ""
-
-            errors["general"] = (
-                "The YouTube API request failed."
-                + (f" Details: {api_message}" if api_message else "")
-            )
-        except requests.exceptions.RequestException as exc:
-            app.logger.exception("YouTube API network error")
-            errors["general"] = (
-                "The server could not reach the YouTube API. "
-                f"Details: {exc}"
-            )
-        except Exception as exc:
-            app.logger.exception("Unexpected search error")
-            errors["general"] = f"Unexpected error: {exc}"
-
-        return render_template(
-            "index.html",
-            query=query,
-            results=results,
-            errors=errors,
-        )
-
-
-app = create_app()
+    with YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(video_url, download=True)
+        file_name = ydl.prepare_filename(info)
+    return send_file(file_name, as_attachment=True)
 
 
 if __name__ == "__main__":

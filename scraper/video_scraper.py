@@ -1,8 +1,6 @@
 import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-import os
-from pathlib import Path
 import re
 import threading
 import time
@@ -36,50 +34,17 @@ DEFAULT_CHANNEL_DESCRIPTION = "Description unavailable"
 DEFAULT_SUBSCRIBERS = "Subscribers unavailable"
 
 
-def find_chromium_executable():
-    configured_path = os.environ.get("CHROMIUM_EXECUTABLE_PATH")
-    if configured_path:
-        candidate = Path(configured_path)
-        if candidate.exists():
-            return str(candidate)
-
-    common_paths = [
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-        "/snap/bin/chromium",
-    ]
-    for path in common_paths:
-        candidate = Path(path)
-        if candidate.exists():
-            return str(candidate)
-
-    return None
-
-
-def get_browser_launch_options():
-    launch_options = {
-        "headless": True,
-        "args": [
-            "--disable-blink-features=AutomationControlled",
-            "--lang=en-US",
-            "--accept-lang=en-US",
-            "--disable-gpu",
-            "--disable-dev-shm-usage",
-            "--no-sandbox",
-        ],
-    }
-
-    chromium_path = find_chromium_executable()
-    if chromium_path:
-        launch_options["executable_path"] = chromium_path
-
-    return launch_options
-
-
 def get_browser_page():
     if not hasattr(thread_local, "page"):
         playwright = sync_playwright().start()
-        browser = playwright.chromium.launch(**get_browser_launch_options())
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--lang=en-US",
+                "--accept-lang=en-US",
+            ],
+        )
         context = browser.new_context(
             viewport={"width": 1280, "height": 800},
             user_agent=(
@@ -271,7 +236,14 @@ def search_channels(query, limit=10, country_name="", category=""):
     channels = []
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(**get_browser_launch_options())
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--lang=en-US",
+                "--accept-lang=en-US",
+            ],
+        )
         context = browser.new_context(locale="en-US")
         page = context.new_page()
 
@@ -417,7 +389,7 @@ def scrape_channel_videos(channel_url):
     return videos
 
 
-def scrape_multiple_channels(channel_urls, output_dir=None):
+def scrape_multiple_channels(channel_urls):
     if not channel_urls:
         print("No channels to scrape")
         return None
@@ -438,11 +410,8 @@ def scrape_multiple_channels(channel_urls, output_dir=None):
         print("No videos found")
         return None
 
-    output_root = Path(output_dir or ".")
-    output_root.mkdir(parents=True, exist_ok=True)
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = output_root / f"youtube_videos_{timestamp}.csv"
+    filename = f"youtube_videos_{timestamp}.csv"
     fieldnames = [
         "channel_url",
         "video_title",
@@ -452,7 +421,7 @@ def scrape_multiple_channels(channel_urls, output_dir=None):
         "duration",
     ]
 
-    with filename.open("w", newline="", encoding="utf-8") as handle:
+    with open(filename, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(all_videos)
@@ -462,4 +431,4 @@ def scrape_multiple_channels(channel_urls, output_dir=None):
         f"Scraped {len(all_videos)} videos from {len(channel_urls)} channels in {elapsed:.1f} seconds"
     )
     print(f"Saved to: {filename}")
-    return str(filename)
+    return filename
