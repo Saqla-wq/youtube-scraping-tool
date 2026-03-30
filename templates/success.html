@@ -16,7 +16,7 @@
             <p>CSV File Saved: <strong>{{ filename }}</strong></p>
 
             <div class="download-section">
-                <a href="{{ url_for('download', session_id=session_id) }}" class="btn btn-download">Download CSV
+                <a href="{{ url_for('download_results', filename=filename) }}" class="btn btn-download">Download CSV
                     File</a>
                 <a href="{{ url_for('index') }}" class="btn btn-newsearch">New Search</a>
             </div>
@@ -45,10 +45,9 @@
                     <td>{{ video.views }}</td>
                     <td>{{ video.upload_date }}</td>
                     <td>{{ video.duration }}</td>
-
                     <td>
-                        <a href="/download?url={{ video.url }}">
-                            <button>⬇ Download</button>
+                        <a href="{{ url_for('download_video', url=video.url) }}">
+                            <button>Download</button>
                         </a>
                     </td>
                 </tr>
