@@ -4,83 +4,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Channel Discovery Tool</title>
+    <title>YouTube Search Tool</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
     <div class="container">
-        <h1>YouTube Channel Discovery</h1>
+        <h1>YouTube Search</h1>
 
         <div class="card">
-            <form method="POST" novalidate>
-                <label for="country">Country</label>
-                <select id="country" name="country">
-                    {% for country in countries %}
-                    <option value="{{ country.code }}" {% if form_data.country==country.code %}selected{% endif %}>
-                        {{ country.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-                {% if errors.country %}
-                <p class="field-error">{{ errors.country }}</p>
-                {% endif %}
-
-                <label for="category">Categories (comma separated)</label>
-                <input id="category" type="text" name="category" value="{{ form_data.category }}"
-                    placeholder="Education, Tech, Entertainment">
-                {% if errors.category %}
-                <p class="field-error">{{ errors.category }}</p>
-                {% endif %}
-
-                <label for="count">Number of Channels (per category)</label>
-                <input id="count" type="number" name="count" min="1" max="200" value="{{ form_data.count }}">
-                {% if errors.count %}
-                <p class="field-error">{{ errors.count }}</p>
+            <form method="POST" action="{{ url_for('search') }}" novalidate>
+                <label for="query">Search YouTube</label>
+                <input id="query" type="text" name="query" value="{{ query }}"
+                    placeholder="Tech reviews, Python tutorials, travel vlogs">
+                {% if errors.query %}
+                <p class="field-error">{{ errors.query }}</p>
                 {% endif %}
 
                 {% if errors.general %}
                 <div class="message message-error">{{ errors.general }}</div>
                 {% endif %}
 
-                <button type="submit">Find Channels</button>
+                <button type="submit">Search</button>
             </form>
         </div>
 
-        {% if summary %}
+        {% if results %}
         <div class="card summary-card">
             <h2>Search Results</h2>
-            <p>{{ summary.returned_count }} of {{ summary.requested_count }} requested channels found for <strong>{{
-                    summary.categories | join(', ') }}</strong> in <strong>{{ summary.country_name }}</strong>.</p>
-            <p>Showing up to {{ summary.per_category }} channels per category.</p>
+            <p>Showing {{ results|length }} result{{ '' if results|length == 1 else 's' }} for <strong>{{ query
+                    }}</strong>.</p>
         </div>
-        {% endif %}
 
-        {% if channels_by_category %}
         <div class="card">
-            <h2>Select Channels to Scrape</h2>
-
-            <form method="POST" action="{{ url_for('scrape') }}">
-                {% for category, channels in channels_by_category.items() %}
-                <h3>{{ category }}</h3>
-                <div class="channel-grid">
-                    {% for channel in channels %}
-                    <label class="channel-card">
-                        <input type="checkbox" name="channels" value="{{ channel.channel_url }}">
-                        <div>
-                            <p class="meta">{{ channel.subscribers }}</p>
-                            <a class="channel-link" href="{{ channel.channel_url }}" target="_blank"
-                                rel="noopener noreferrer">
-                                {{ channel.channel_url }}
-                            </a>
-                        </div>
-                    </label>
-                    {% endfor %}
+            <div class="channel-grid">
+                {% for item in results %}
+                <div class="channel-card">
+                    <div>
+                        {% if item.thumbnail %}
+                        <img src="{{ item.thumbnail }}" alt="{{ item.title }}"
+                            style="width: 100%; max-width: 320px; border-radius: 12px; margin-bottom: 12px;">
+                        {% endif %}
+                        <p class="meta">{{ item.channel_title }}</p>
+                        {% if item.published_at %}
+                        <p class="meta">{{ item.published_at[:10] }}</p>
+                        {% endif %}
+                        <a class="channel-link" href="{{ item.video_url }}" target="_blank" rel="noopener noreferrer">
+                            {{ item.title }}
+                        </a>
+                        <p class="description">{{ item.description }}</p>
+                    </div>
                 </div>
                 {% endfor %}
-
-                <button type="submit">Scrape Selected Channels</button>
-            </form>
+            </div>
         </div>
         {% endif %}
     </div>
