@@ -65,11 +65,13 @@ If you want a custom secret key, add it in the WSGI file:
 os.environ.setdefault("FLASK_SECRET_KEY", "your-random-secret")
 ```
 
-If PythonAnywhere support gives you a specific Chromium path, you can also add:
+This project now defaults the WSGI file to:
 
 ```python
 os.environ.setdefault("CHROMIUM_EXECUTABLE_PATH", "/usr/bin/chromium")
 ```
+
+If your PythonAnywhere account uses a different Chromium path, replace that value.
 
 ## 7. Reload the site
 
@@ -82,6 +84,12 @@ Check these from the Web tab:
 - Error log
 - Server log
 - Access log
+
+If the homepage opens but clicking `Find Channels` fails, the error is usually one of these:
+
+- Chromium is not available at the configured path
+- Playwright is not installed in the web app virtualenv
+- Your PythonAnywhere account cannot access YouTube from the server side
 
 ## Notes about this project
 

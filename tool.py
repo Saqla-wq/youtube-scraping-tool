@@ -79,28 +79,37 @@ def register_routes(app):
             )
 
             if not errors:
-                channels_by_category = discover_channels_by_categories(
-                    country_code=cleaned["country_code"],
-                    categories=cleaned["categories"],
-                    limit=cleaned["count"],
-                )
-                total_returned = sum(
-                    len(category_channels)
-                    for category_channels in channels_by_category.values()
-                )
-                total_requested = cleaned["count"] * len(cleaned["categories"])
-                summary = {
-                    "country_name": cleaned["country_name"],
-                    "categories": cleaned["categories"],
-                    "requested_count": total_requested,
-                    "returned_count": total_returned,
-                    "per_category": cleaned["count"],
-                }
+                try:
+                    channels_by_category = discover_channels_by_categories(
+                        country_code=cleaned["country_code"],
+                        categories=cleaned["categories"],
+                        limit=cleaned["count"],
+                    )
+                    total_returned = sum(
+                        len(category_channels)
+                        for category_channels in channels_by_category.values()
+                    )
+                    total_requested = cleaned["count"] * len(cleaned["categories"])
+                    summary = {
+                        "country_name": cleaned["country_name"],
+                        "categories": cleaned["categories"],
+                        "requested_count": total_requested,
+                        "returned_count": total_returned,
+                        "per_category": cleaned["count"],
+                    }
 
-                if not total_returned:
+                    if not total_returned:
+                        errors["general"] = (
+                            "No channels were found for that country and category. "
+                            "Try a broader category or a smaller count."
+                        )
+                except Exception as exc:
+                    app.logger.exception("Channel discovery failed")
                     errors["general"] = (
-                        "No channels were found for that country and category. "
-                        "Try a broader category or a smaller count."
+                        "Search failed on the server. "
+                        "On PythonAnywhere this is usually caused by Chromium setup, "
+                        "Playwright browser access, or account network restrictions. "
+                        f"Details: {exc}"
                     )
 
         return render_template(

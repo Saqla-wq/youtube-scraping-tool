@@ -36,6 +36,26 @@ DEFAULT_CHANNEL_DESCRIPTION = "Description unavailable"
 DEFAULT_SUBSCRIBERS = "Subscribers unavailable"
 
 
+def find_chromium_executable():
+    configured_path = os.environ.get("CHROMIUM_EXECUTABLE_PATH")
+    if configured_path:
+        candidate = Path(configured_path)
+        if candidate.exists():
+            return str(candidate)
+
+    common_paths = [
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/snap/bin/chromium",
+    ]
+    for path in common_paths:
+        candidate = Path(path)
+        if candidate.exists():
+            return str(candidate)
+
+    return None
+
+
 def get_browser_launch_options():
     launch_options = {
         "headless": True,
@@ -44,11 +64,12 @@ def get_browser_launch_options():
             "--lang=en-US",
             "--accept-lang=en-US",
             "--disable-gpu",
+            "--disable-dev-shm-usage",
             "--no-sandbox",
         ],
     }
 
-    chromium_path = os.environ.get("CHROMIUM_EXECUTABLE_PATH")
+    chromium_path = find_chromium_executable()
     if chromium_path:
         launch_options["executable_path"] = chromium_path
 
