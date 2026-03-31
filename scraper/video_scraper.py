@@ -37,7 +37,16 @@ DEFAULT_SUBSCRIBERS = "Subscribers unavailable"
 def get_browser_page():
     if not hasattr(thread_local, "page"):
         playwright = sync_playwright().start()
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+                "--lang=en-US",
+                "--accept-lang=en-US",
+            ],
+        )
         context = browser.new_context(
             viewport={"width": 1280, "height": 800},
             user_agent=(
@@ -232,6 +241,8 @@ def search_channels(query, limit=10, country_name="", category=""):
         browser = playwright.chromium.launch(
             headless=True,
             args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
                 "--disable-blink-features=AutomationControlled",
                 "--lang=en-US",
                 "--accept-lang=en-US",
@@ -293,7 +304,7 @@ def scrape_channel_videos(channel_url):
         page.goto(videos_url, timeout=30000)
         page.wait_for_timeout(3000)
 
-        for _ in range(20):
+        for _ in range(8):
             page.evaluate("window.scrollBy(0, 2000)")
             page.wait_for_timeout(1500)
 
@@ -303,7 +314,7 @@ def scrape_channel_videos(channel_url):
             "ytd-video-renderer"
         )
 
-        for item in video_items[:80]:
+        for item in video_items[:30]:
             try:
                 title_elem = item.find("a", {"id": "video-title"}) or item.find(
                     "a", {"id": "video-title-link"}
@@ -390,7 +401,7 @@ def scrape_multiple_channels(channel_urls):
     start_time = time.time()
     all_videos = []
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         futures = [executor.submit(scrape_channel_videos, url) for url in channel_urls]
         for future in as_completed(futures):
             try:
