@@ -7,7 +7,6 @@ import time
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
-
 from playwright.sync_api import sync_playwright
 
 thread_local = threading.local()
@@ -39,8 +38,12 @@ def get_browser_page():
     if not hasattr(thread_local, "page"):
         playwright = sync_playwright().start()
         browser = playwright.chromium.launch(
-            executable_path="/usr/bin/chromium",
-            args=["--disable-gpu", "--no-sandbox", "--headless"],
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--lang=en-US",
+                "--accept-lang=en-US",
+            ],
         )
         context = browser.new_context(
             viewport={"width": 1280, "height": 800},
