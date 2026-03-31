@@ -37,14 +37,7 @@ DEFAULT_SUBSCRIBERS = "Subscribers unavailable"
 def get_browser_page():
     if not hasattr(thread_local, "page"):
         playwright = sync_playwright().start()
-        browser = playwright.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--lang=en-US",
-                "--accept-lang=en-US",
-            ],
-        )
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
         context = browser.new_context(
             viewport={"width": 1280, "height": 800},
             user_agent=(
