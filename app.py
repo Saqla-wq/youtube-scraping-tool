@@ -154,8 +154,8 @@ def download(session_id):
     )
 
 
-@app.route("/download")
-def download_video():
+@app.route("/download/<video_id>")
+def download_video(video_id):
     video_url = request.args.get("url")
     output_path = os.path.join(os.getcwd(), "temp_downloads")
     os.makedirs(output_path, exist_ok=True)
@@ -169,7 +169,7 @@ def download_video():
         info = ydl.extract_info(video_url, download=True)
         file_name = ydl.prepare_filename(info)
 
-    return send_file(file_name, as_attachment=True)
+    return "Download not supported on this server."
 
 
 @app.route("/health")
