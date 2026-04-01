@@ -1,6 +1,7 @@
 import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+import os
 import re
 import threading
 import time
@@ -34,19 +35,41 @@ DEFAULT_CHANNEL_DESCRIPTION = "Description unavailable"
 DEFAULT_SUBSCRIBERS = "Subscribers unavailable"
 
 
+def _chromium_launch_options():
+    executable_path = os.environ.get("PLAYWRIGHT_EXECUTABLE_PATH")
+    if not executable_path and os.environ.get("PYTHONANYWHERE_SITE"):
+        executable_path = "/usr/bin/chromium"
+
+    launch_options = {
+        "headless": True,
+        "args": [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-blink-features=AutomationControlled",
+            "--lang=en-US",
+            "--accept-lang=en-US",
+        ],
+    }
+
+    if executable_path:
+        launch_options["executable_path"] = executable_path
+        launch_options["args"] = [
+            "--disable-gpu",
+            "--no-sandbox",
+            "--headless",
+            "--disable-dev-shm-usage",
+            "--disable-blink-features=AutomationControlled",
+            "--lang=en-US",
+            "--accept-lang=en-US",
+        ]
+
+    return launch_options
+
+
 def get_browser_page():
     if not hasattr(thread_local, "page"):
         playwright = sync_playwright().start()
-        browser = playwright.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-                "--lang=en-US",
-                "--accept-lang=en-US",
-            ],
-        )
+        browser = playwright.chromium.launch(**_chromium_launch_options())
         context = browser.new_context(
             viewport={"width": 1280, "height": 800},
             user_agent=(
@@ -238,16 +261,7 @@ def search_channels(query, limit=10, country_name="", category=""):
     channels = []
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-                "--lang=en-US",
-                "--accept-lang=en-US",
-            ],
-        )
+        browser = playwright.chromium.launch(**_chromium_launch_options())
         context = browser.new_context(locale="en-US")
         page = context.new_page()
 
