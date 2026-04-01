@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import re
 import threading
+from playwright.sync_api import Error as PlaywrightError
 import time
 from urllib.parse import quote_plus
 
@@ -271,7 +272,12 @@ def search_channels(query, limit=10, country_name="", category=""):
         )
         print(f"Searching: {search_url}")
 
-        page.goto(search_url, timeout=45000, wait_until="domcontentloaded")
+        try:
+            page.goto(search_url, timeout=45000, wait_until="domcontentloaded")
+        except PlaywrightError as e:
+            print(f"Playwright failed for {search_url}: {e}")
+            return []
+
         page.wait_for_timeout(3500)
 
         for _ in range(4):

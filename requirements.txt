@@ -1,5 +1,4 @@
 flask
-gunicorn
 playwright
 yt-dlp
 bs4

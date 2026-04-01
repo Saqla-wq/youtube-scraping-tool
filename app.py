@@ -43,11 +43,19 @@ def index():
         )
 
         if not errors:
-            channels_by_category = discover_channels_by_categories(
-                country_code=cleaned["country_code"],
-                categories=cleaned["categories"],
-                limit=cleaned["count"],
-            )
+            try:
+                channels_by_category = discover_channels_by_categories(
+                    country_code=cleaned["country_code"],
+                    categories=cleaned["categories"],
+                    limit=cleaned["count"],
+                )
+            except Exception as e:
+                app.logger.exception("Search failed")
+                channels_by_category = {}
+                errors.append(
+                    "Search is temporarily unavailable right now. Please try again later."
+                )
+
             total_returned = sum(
                 len(category_channels)
                 for category_channels in channels_by_category.values()
