@@ -360,6 +360,8 @@ def scrape_channel_videos(channel_value):
 
         videos.append(
             {
+                "channel_name": item["snippet"]["channelTitle"],  # ✅ ADD THIS
+                "channel_url": f"https://www.youtube.com/channel/{channel_id}",  # optional
                 "video_title": snippet.get("title") or "No title available",
                 "video_url": f"https://www.youtube.com/watch?v={video_id}",
                 "views": _format_views(details.get("views")),
