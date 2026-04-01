@@ -18,6 +18,8 @@
                 <select id="country" name="country">
                     {% for country in countries %}
                     <option value="{{ country.code }}" {% if form_data.country==country.code %}selected{% endif %}>
+                        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+                            rel="stylesheet" />
                         {{ country.name }}
                     </option>
                     {% endfor %}
