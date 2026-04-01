@@ -30,6 +30,17 @@ YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "").strip()
 
 
+def extract_channel_id(value):
+    value = (value or "").strip()
+    if not value:
+        return ""
+
+    if value.startswith("http"):
+        return value.rstrip("/").split("/")[-1]
+
+    return value
+
+
 def normalize_text(value, fallback=""):
     cleaned = re.sub(r"\s+", " ", (value or "").replace("\xa0", " ")).strip()
     return cleaned or fallback
@@ -209,7 +220,11 @@ def _format_views(view_count):
         return "Views unavailable"
 
 
-def scrape_channel_videos(channel_id):
+def scrape_channel_videos(channel_value):
+    channel_id = extract_channel_id(channel_value)
+    if not channel_id:
+        return []
+
     data = _api_get(
         "search",
         {
@@ -220,7 +235,6 @@ def scrape_channel_videos(channel_id):
             "maxResults": 30,
         },
     )
-
     video_ids = []
     items = []
     for item in data.get("items", []):
