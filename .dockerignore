@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+temp_downloads/
+youtube_videos_*.csv
+pythonanywhere_wsgi.py
+runtime.txt
+procfile
+railway.sh

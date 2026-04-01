@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: youtube-scraping-tool
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
