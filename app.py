@@ -154,22 +154,24 @@ def download(session_id):
     )
 
 
-@app.route("/download/<video_id>")
-def download_video(video_id):
+@app.route("/download")
+def download_video():
     video_url = request.args.get("url")
-    output_path = os.path.join(os.getcwd(), "temp_downloads")
-    os.makedirs(output_path, exist_ok=True)
 
-    ydl_opts = {
-        "outtmpl": os.path.join(output_path, "%(title)s.%(ext)s"),
-        "format": "best[height<=720]",
-    }
+    if not video_url:
+        return "Invalid video URL"
+    try:
+        if "v=" in video_url:
+            video_id = video_url.split("v=")[-1].split("&")[0]
+        else:
+            return "Invalid YouTube URL"
 
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=True)
-        file_name = ydl.prepare_filename(info)
+        download_url = f"https://www.y2mate.com/youtube/{video_id}"
 
-    return "Download not supported on this server."
+        return redirect(download_url)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 
 @app.route("/health")

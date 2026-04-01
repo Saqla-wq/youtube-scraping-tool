@@ -47,8 +47,9 @@
                     <td>{{ video.duration }}</td>
 
                     <td>
-                        <a href="{{ url_for('download_video', video_id=video.video_id) }}">
-                            <button>⬇ Download</button>
+                        <a href="{{ url_for('download_video') }}?url={{ video.video_url }}" class="btn btn-warning"
+                            target="_blank">
+                            ⬇ Download
                         </a>
                     </td>
                 </tr>
