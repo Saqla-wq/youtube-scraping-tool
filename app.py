@@ -53,7 +53,7 @@ def index():
                 app.logger.exception("Search failed")
                 channels_by_category = {}
                 errors.append(
-                    "Search is temporarily unavailable right now. Please try again later."
+                    "Search is temporarily unavailable because the server could not reach YouTube. Please try again later."
                 )
 
             total_returned = sum(
