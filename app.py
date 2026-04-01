@@ -1,9 +1,10 @@
 from collections import defaultdict
 import csv
-from yt_dlp import YoutubeDL
 import os
 import uuid
+
 from flask import Flask, redirect, render_template, request, send_file, url_for
+from yt_dlp import YoutubeDL
 
 from scraper.video_scraper import (
     COUNTRIES,
@@ -11,7 +12,6 @@ from scraper.video_scraper import (
     scrape_multiple_channels,
     validate_search_inputs,
 )
-
 
 app = Flask(__name__)
 
@@ -49,10 +49,10 @@ def index():
                     categories=cleaned["categories"],
                     limit=cleaned["count"],
                 )
-            except Exception as e:
+            except Exception:
                 app.logger.exception("Search failed")
                 channels_by_category = {}
-                errors.append(
+                errors["general"] = (
                     "Search is temporarily unavailable because the server could not reach YouTube. Please try again later."
                 )
 
@@ -69,10 +69,9 @@ def index():
                 "per_category": cleaned["count"],
             }
 
-            if not total_returned:
+            if not total_returned and "general" not in errors:
                 errors["general"] = (
-                    "No channels were found for that country and category. "
-                    "Try a broader category or a smaller count."
+                    "No channels were found for that country and category."
                 )
 
     return render_template(
@@ -100,7 +99,7 @@ def scrape():
         results_cache[session_id] = filename
         return redirect(url_for("success", session_id=session_id))
     except Exception as exc:
-        print(f"Scrape error: {exc}")
+        app.logger.exception("Scrape failed")
         return f"Error: {exc}"
 
 
@@ -130,7 +129,7 @@ def success():
                 videos_by_channel[channel].append(video_data)
                 total_videos += 1
     except Exception as exc:
-        print(f"Error reading CSV: {exc}")
+        app.logger.exception("Error reading CSV: %s", exc)
 
     return render_template(
         "success.html",
@@ -163,12 +162,13 @@ def download_video():
 
     ydl_opts = {
         "outtmpl": os.path.join(output_path, "%(title)s.%(ext)s"),
-        "format": "best[height<=720]",  # keep smaller for browser download
+        "format": "best[height<=720]",
     }
 
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=True)
         file_name = ydl.prepare_filename(info)
+
     return send_file(file_name, as_attachment=True)
 
 

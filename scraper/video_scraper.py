@@ -1,17 +1,9 @@
 import csv
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import os
 import re
-import threading
-from playwright.sync_api import Error as PlaywrightError
-import time
-from urllib.parse import quote_plus
 
-from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
-
-thread_local = threading.local()
+import requests
 
 COUNTRIES = [
     {"code": "US", "name": "United States"},
@@ -34,86 +26,13 @@ COUNTRIES = [
 COUNTRY_MAP = {country["code"]: country["name"] for country in COUNTRIES}
 DEFAULT_CHANNEL_DESCRIPTION = "Description unavailable"
 DEFAULT_SUBSCRIBERS = "Subscribers unavailable"
-
-
-def _chromium_launch_options():
-    executable_path = os.environ.get("PLAYWRIGHT_EXECUTABLE_PATH")
-    if not executable_path and os.environ.get("PYTHONANYWHERE_SITE"):
-        executable_path = "/usr/bin/chromium"
-
-    launch_options = {
-        "headless": True,
-        "args": [
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-blink-features=AutomationControlled",
-            "--lang=en-US",
-            "--accept-lang=en-US",
-        ],
-    }
-
-    if executable_path:
-        launch_options["executable_path"] = executable_path
-        launch_options["args"] = [
-            "--disable-gpu",
-            "--no-sandbox",
-            "--headless",
-            "--disable-dev-shm-usage",
-            "--disable-blink-features=AutomationControlled",
-            "--lang=en-US",
-            "--accept-lang=en-US",
-        ]
-
-    return launch_options
-
-
-def get_browser_page():
-    if not hasattr(thread_local, "page"):
-        playwright = sync_playwright().start()
-        browser = playwright.chromium.launch(**_chromium_launch_options())
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 800},
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
-            locale="en-US",
-            timezone_id="America/New_York",
-        )
-        thread_local.page = context.new_page()
-        thread_local.context = context
-        thread_local.browser = browser
-        thread_local.playwright = playwright
-    return thread_local.page
-
-
-def cleanup_thread():
-    if hasattr(thread_local, "page"):
-        thread_local.page.close()
-        thread_local.context.close()
-        thread_local.browser.close()
-        thread_local.playwright.stop()
-        del thread_local.page
-        del thread_local.context
-        del thread_local.browser
-        del thread_local.playwright
+YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "").strip()
 
 
 def normalize_text(value, fallback=""):
     cleaned = re.sub(r"\s+", " ", (value or "").replace("\xa0", " ")).strip()
     return cleaned or fallback
-
-
-def normalize_channel_url(url):
-    if not url:
-        return ""
-
-    full_url = url if url.startswith("http") else f"https://www.youtube.com{url}"
-    for suffix in ["/videos", "/featured", "/playlists", "/shorts", "/community"]:
-        if suffix in full_url:
-            full_url = full_url.split(suffix)[0]
-    return full_url.rstrip("/")
 
 
 def parse_categories(categories_input):
@@ -142,8 +61,8 @@ def validate_search_inputs(country_code, categories_input, count_value):
 
     try:
         cleaned_count = int(str(count_value).strip())
-        if cleaned_count < 1 or cleaned_count > 200:
-            errors["count"] = "Channel count must be between 1 and 200."
+        if cleaned_count < 1 or cleaned_count > 50:
+            errors["count"] = "Channel count must be between 1 and 50."
     except (TypeError, ValueError):
         cleaned_count = None
         errors["count"] = "Please enter a whole number for channel count."
@@ -159,6 +78,82 @@ def validate_search_inputs(country_code, categories_input, count_value):
 
 def build_search_query(country_name, category):
     return f"{category} youtube channels in {country_name}"
+
+
+def _api_get(path, params):
+    if not YOUTUBE_API_KEY:
+        raise RuntimeError("YOUTUBE_API_KEY is not set")
+
+    query = dict(params)
+    query["key"] = YOUTUBE_API_KEY
+
+    response = requests.get(f"{YOUTUBE_API_BASE}/{path}", params=query, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+def _format_subscribers(count):
+    try:
+        count_int = int(count)
+    except (TypeError, ValueError):
+        return DEFAULT_SUBSCRIBERS
+
+    if count_int >= 1_000_000:
+        return f"{count_int / 1_000_000:.1f}M subscribers"
+    if count_int >= 1_000:
+        return f"{count_int / 1_000:.1f}K subscribers"
+    return f"{count_int} subscribers"
+
+
+def search_channels(query, limit=10, country_name="", category=""):
+    search_data = _api_get(
+        "search",
+        {
+            "part": "snippet",
+            "q": query,
+            "type": "channel",
+            "maxResults": min(limit, 25),
+        },
+    )
+
+    channel_ids = []
+    for item in search_data.get("items", []):
+        snippet = item.get("snippet", {})
+        channel_id = snippet.get("channelId")
+        if channel_id and channel_id not in channel_ids:
+            channel_ids.append(channel_id)
+
+    if not channel_ids:
+        return []
+
+    channels_data = _api_get(
+        "channels",
+        {
+            "part": "snippet,statistics",
+            "id": ",".join(channel_ids),
+        },
+    )
+
+    channels = []
+    for item in channels_data.get("items", []):
+        snippet = item.get("snippet", {})
+        statistics = item.get("statistics", {})
+        channel_id = item.get("id", "")
+
+        channels.append(
+            {
+                "channel_id": channel_id,
+                "channel_name": snippet.get("title", "Unknown channel"),
+                "channel_url": f"https://www.youtube.com/channel/{channel_id}",
+                "subscribers": _format_subscribers(statistics.get("subscriberCount")),
+                "description": normalize_text(
+                    snippet.get("description"),
+                    f"{category} channel discovered for {country_name}",
+                ),
+            }
+        )
+
+    return channels[:limit]
 
 
 def discover_channels(country_code, category, limit=5):
@@ -186,252 +181,88 @@ def discover_channels_by_categories(country_code, categories, limit=5):
     return channels_by_category
 
 
-def _extract_channel_from_renderer(renderer):
-    title_link = renderer.select_one("a#main-link")
-    if not title_link:
-        title_link = renderer.select_one(
-            "a[href*='/@'], a[href*='/channel/'], a[href*='/c/']"
-        )
+def _fetch_video_details(video_ids):
+    if not video_ids:
+        return {}
 
-    channel_url = normalize_channel_url(title_link.get("href") if title_link else "")
-    if not channel_url:
-        return None
-
-    channel_name = normalize_text(title_link.get("title") if title_link else "")
-    if not channel_name:
-        channel_name = normalize_text(
-            title_link.get_text(" ", strip=True) if title_link else "",
-            "Unknown channel",
-        )
-
-    subscriber_text = DEFAULT_SUBSCRIBERS
-    metadata = renderer.select("#subscribers, #video-count, #metadata span")
-    for item in metadata:
-        text = normalize_text(item.get_text(" ", strip=True))
-        if "subscriber" in text.lower():
-            subscriber_text = text
-            break
-
-    description_node = renderer.select_one("#description-text")
-    description = normalize_text(
-        description_node.get_text(" ", strip=True) if description_node else "",
-        DEFAULT_CHANNEL_DESCRIPTION,
+    details_data = _api_get(
+        "videos",
+        {
+            "part": "contentDetails,statistics",
+            "id": ",".join(video_ids),
+        },
     )
 
-    return {
-        "channel_name": channel_name,
-        "channel_url": channel_url,
-        "subscribers": subscriber_text,
-        "description": description,
-    }
+    details_map = {}
+    for item in details_data.get("items", []):
+        details_map[item.get("id")] = {
+            "views": item.get("statistics", {}).get("viewCount"),
+            "duration": item.get("contentDetails", {}).get("duration"),
+        }
+    return details_map
 
 
-def _extract_channels_from_anchors(soup, limit, category, country_name):
-    discovered = []
-    seen_urls = set()
-
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
-        if not any(marker in href for marker in ["/@", "/channel/", "/c/"]):
-            continue
-
-        channel_url = normalize_channel_url(href)
-        if not channel_url or channel_url in seen_urls:
-            continue
-
-        channel_name = normalize_text(
-            link.get("title") or link.get_text(" ", strip=True), "Unknown channel"
-        )
-        discovered.append(
-            {
-                "channel_name": channel_name,
-                "channel_url": channel_url,
-                "subscribers": DEFAULT_SUBSCRIBERS,
-                "description": f"{category} channel discovered for {country_name}",
-            }
-        )
-        seen_urls.add(channel_url)
-
-        if len(discovered) >= limit:
-            break
-
-    return discovered
+def _format_views(view_count):
+    try:
+        return f"{int(view_count):,} views"
+    except (TypeError, ValueError):
+        return "Views unavailable"
 
 
-def search_channels(query, limit=10, country_name="", category=""):
-    channels = []
+def scrape_channel_videos(channel_id):
+    data = _api_get(
+        "search",
+        {
+            "part": "snippet",
+            "channelId": channel_id,
+            "order": "date",
+            "type": "video",
+            "maxResults": 30,
+        },
+    )
 
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(**_chromium_launch_options())
-        context = browser.new_context(locale="en-US")
-        page = context.new_page()
+    video_ids = []
+    items = []
+    for item in data.get("items", []):
+        video_id = item.get("id", {}).get("videoId")
+        if video_id:
+            video_ids.append(video_id)
+            items.append(item)
 
-        search_url = (
-            "https://www.youtube.com/results"
-            f"?search_query={quote_plus(query)}&sp=EgIQAg%253D%253D"
-        )
-        print(f"Searching: {search_url}")
-
-        try:
-            page.goto(search_url, timeout=45000, wait_until="domcontentloaded")
-        except PlaywrightError as e:
-            print(f"Playwright failed for {search_url}: {e}")
-            return []
-
-        page.wait_for_timeout(3500)
-
-        for _ in range(4):
-            page.evaluate("window.scrollBy(0, 1000)")
-            page.wait_for_timeout(1200)
-
-        soup = BeautifulSoup(page.content(), "html.parser")
-        seen_urls = set()
-
-        for renderer in soup.find_all("ytd-channel-renderer"):
-            channel = _extract_channel_from_renderer(renderer)
-            if not channel:
-                continue
-
-            if channel["channel_url"] in seen_urls:
-                continue
-
-            seen_urls.add(channel["channel_url"])
-            channels.append(channel)
-
-            if len(channels) >= limit:
-                break
-
-        if not channels:
-            channels = _extract_channels_from_anchors(
-                soup, limit, category, country_name
-            )
-
-        context.close()
-        browser.close()
-
-    print(f"Found {len(channels)} channels")
-    return channels[:limit]
-
-
-def scrape_channel_videos(channel_url):
+    details_map = _fetch_video_details(video_ids)
     videos = []
 
-    try:
-        page = get_browser_page()
-        print(f"Scraping: {channel_url}")
+    for item in items:
+        snippet = item.get("snippet", {})
+        video_id = item.get("id", {}).get("videoId")
+        details = details_map.get(video_id, {})
 
-        videos_url = channel_url.rstrip("/") + "/videos"
-        page.goto(videos_url, timeout=30000)
-        page.wait_for_timeout(3000)
-
-        for _ in range(8):
-            page.evaluate("window.scrollBy(0, 2000)")
-            page.wait_for_timeout(1500)
-
-        html_content = page.content()
-        soup = BeautifulSoup(html_content, "html.parser")
-        video_items = soup.find_all("ytd-rich-item-renderer") or soup.find_all(
-            "ytd-video-renderer"
+        videos.append(
+            {
+                "channel_url": f"https://www.youtube.com/channel/{channel_id}",
+                "video_title": snippet.get("title") or "No title available",
+                "video_url": f"https://www.youtube.com/watch?v={video_id}",
+                "views": _format_views(details.get("views")),
+                "upload_date": snippet.get("publishedAt", "Date unavailable"),
+                "duration": details.get("duration") or "Duration unavailable",
+            }
         )
-
-        for item in video_items[:30]:
-            try:
-                title_elem = item.find("a", {"id": "video-title"}) or item.find(
-                    "a", {"id": "video-title-link"}
-                )
-                if not title_elem:
-                    continue
-
-                title = normalize_text(
-                    title_elem.get("title") or title_elem.get_text(" ", strip=True)
-                )
-                if not title:
-                    continue
-
-                href = title_elem.get("href", "")
-                video_url = (
-                    href
-                    if href.startswith("http")
-                    else f"https://www.youtube.com{href}"
-                )
-
-                views = ""
-                upload_date = ""
-
-                metadata_elem = item.find("div", {"id": "metadata-line"})
-                if metadata_elem:
-                    spans = metadata_elem.find_all("span")
-                    if len(spans) >= 2:
-                        views = normalize_text(spans[0].text)
-                        upload_date = normalize_text(spans[1].text)
-
-                if not views:
-                    metadata_spans = item.find_all(
-                        "span", {"class": "inline-metadata-item"}
-                    )
-                    if len(metadata_spans) >= 2:
-                        views = normalize_text(metadata_spans[0].text)
-                        upload_date = normalize_text(metadata_spans[1].text)
-
-                if views and "views" not in views.lower():
-                    num_match = re.search(r"([\d,.]+[KMB]?)", views)
-                    if num_match:
-                        views = f"{num_match.group(1)} views"
-
-                duration = ""
-                duration_selectors = [
-                    item.find(
-                        "span", {"class": "ytd-thumbnail-overlay-time-status-renderer"}
-                    ),
-                    item.find("ytd-thumbnail-overlay-time-status-renderer"),
-                    item.find("span", {"class": "badge-shape-wiz__text"}),
-                ]
-
-                for selector in duration_selectors:
-                    if selector:
-                        duration = normalize_text(selector.text)
-                        break
-
-                videos.append(
-                    {
-                        "channel_url": channel_url,
-                        "video_title": title,
-                        "video_url": video_url,
-                        "views": views or "Views unavailable",
-                        "upload_date": upload_date or "Date unavailable",
-                        "duration": duration or "Duration unavailable",
-                    }
-                )
-            except Exception:
-                continue
-
-    except Exception as exc:
-        print(f"Error scraping {channel_url}: {exc}")
-    finally:
-        cleanup_thread()
 
     return videos
 
 
-def scrape_multiple_channels(channel_urls):
-    if not channel_urls:
-        print("No channels to scrape")
+def scrape_multiple_channels(channel_ids):
+    if not channel_ids:
         return None
 
-    start_time = time.time()
     all_videos = []
-
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        futures = [executor.submit(scrape_channel_videos, url) for url in channel_urls]
-        for future in as_completed(futures):
-            try:
-                channel_videos = future.result(timeout=240)
-                all_videos.extend(channel_videos)
-            except Exception as exc:
-                print(f"Task failed: {exc}")
+    for channel_id in channel_ids:
+        try:
+            all_videos.extend(scrape_channel_videos(channel_id))
+        except Exception as exc:
+            print(f"Task failed for {channel_id}: {exc}")
 
     if not all_videos:
-        print("No videos found")
         return None
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -450,9 +281,4 @@ def scrape_multiple_channels(channel_urls):
         writer.writeheader()
         writer.writerows(all_videos)
 
-    elapsed = time.time() - start_time
-    print(
-        f"Scraped {len(all_videos)} videos from {len(channel_urls)} channels in {elapsed:.1f} seconds"
-    )
-    print(f"Saved to: {filename}")
     return filename
