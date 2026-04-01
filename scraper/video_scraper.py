@@ -327,11 +327,7 @@ def _format_views(view_count):
         return "Views unavailable"
 
 
-def scrape_channel_videos(channel_value):
-    channel_id = extract_channel_id(channel_value)
-    if not channel_id:
-        return []
-
+def scrape_channel_videos(channel_id):
     data = _api_get(
         "search",
         {
@@ -342,6 +338,7 @@ def scrape_channel_videos(channel_value):
             "maxResults": 30,
         },
     )
+
     video_ids = []
     items = []
     for item in data.get("items", []):
@@ -360,8 +357,7 @@ def scrape_channel_videos(channel_value):
 
         videos.append(
             {
-                "channel_name": item["snippet"]["channelTitle"],  # ✅ ADD THIS
-                "channel_url": f"https://www.youtube.com/channel/{channel_id}",  # optional
+                "channel_url": f"https://www.youtube.com/channel/{channel_id}",
                 "video_title": snippet.get("title") or "No title available",
                 "video_url": f"https://www.youtube.com/watch?v={video_id}",
                 "views": _format_views(details.get("views")),
